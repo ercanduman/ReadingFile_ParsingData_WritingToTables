@@ -6,7 +6,8 @@ create table EDUMAN.BILLING_INVOICES (
 	End_Date     DATE,
 	Product_Name VARCHAR(50),
 	Fee          NUMBER,
-	Gross_Fee    NUMBER
+	Gross_Fee    NUMBER,
+	Process_Time DATE
 );
 
 --table comment retrieved
@@ -21,6 +22,7 @@ comment on column EDUMAN.BILLING_INVOICES.End_Date is 'End_Date attribute define
 comment on column EDUMAN.BILLING_INVOICES.Product_Name is 'Product_Name attribute defines the name of product which are stored in eduman.billing_product_types.';
 comment on column EDUMAN.BILLING_INVOICES.Fee is 'Fee attribute defines the cost of service that parsed from file data.';
 comment on column EDUMAN.BILLING_INVOICES.Gross_Fee is 'Gross_Fee attribute defines the service price with calculation of kdv+oiv taxes.';
+comment on column EDUMAN.BILLING_INVOICES.Process_Time is 'Process_Time attribute defines the execution time of invoice.';
 
 --instead of writing Operand_id values one by one, a sequence created
 CREATE sequence EDUMAN.seq_BILLING_INVOICES_id start with 1 increment by 1 cache 10 order nocycle;
