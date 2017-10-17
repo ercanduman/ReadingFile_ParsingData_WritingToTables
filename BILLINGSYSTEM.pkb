@@ -32,12 +32,39 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	
 	END GetGlobalConfigurations;
 
+	PROCEDURE CalculateGrossFee(vs_Msisdn IN OUT VARCHAR,
+															pin_Fee   IN OUT NUMBER) IS
+	
+		vn_KDVTaxRate eduman.billing_product_types.kdv_tax_rate%TYPE;
+		vn_OIVTaxRate eduman.billing_product_types.oiv_tax_rate%TYPE;
+		vn_GrossFee   eduman.billing_invoices.gross_fee%TYPE := NULL;
+	
+	BEGIN
+		SELECT DISTINCT kdv_tax_rate, oiv_tax_rate
+			INTO vn_KDVTaxRate, vn_OIVTaxRate
+			FROM eduman.billing_invoices bi, eduman.billing_product_types bp
+		 WHERE bi.product_name = bp.product_name
+			 AND msisdn = vs_Msisdn;
+	
+		vn_GrossFee := (nvl((vn_KDVTaxRate + vn_OIVTaxRate) / 100, 0) + 1) *
+									 pin_Fee;
+		dbms_output.put_line('INFO> Fee: ' || pin_Fee || ' vn_GrossFee: ' ||
+												 vn_GrossFee);
+	
+		UPDATE eduman.billing_invoices bi
+			 SET bi.gross_fee = vn_GrossFee
+		 WHERE msisdn = vs_Msisdn;
+		COMMIT;
+	
+	END CalculateGrossFee;
+
 	PROCEDURE i_BillingInvoices(vs_Msisdn      IN OUT VARCHAR,
 															vs_Service     IN OUT VARCHAR,
 															vd_StartDate   IN OUT DATE,
 															vd_EndDate     IN OUT DATE,
 															vs_ProductName IN OUT VARCHAR,
-															vn_Fee         IN OUT NUMBER) IS
+															pin_Fee        IN OUT NUMBER) IS
+	
 	BEGIN
 		INSERT INTO eduman.billing_invoices
 			(invoice_id,
@@ -47,7 +74,6 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			 end_date,
 			 product_name,
 			 fee,
-			 gross_fee,
 			 process_time)
 		VALUES
 			(eduman.seq_billing_invoices_id.nextval,
@@ -56,10 +82,12 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			 vd_StartDate,
 			 vd_EndDate,
 			 vs_ProductName,
-			 vn_Fee,
-			 (vn_Fee * 1.43),
+			 pin_Fee,
 			 SYSDATE);
 		COMMIT;
+	
+		CalculateGrossFee(vs_Msisdn, pin_Fee);
+	
 	END i_BillingInvoices;
 
 	PROCEDURE ParseFileData(vs_AllFileData IN OUT VARCHAR2) IS
@@ -116,7 +144,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		LOOP
 			BEGIN
 				UTL_FILE.GET_LINE(vt_OutFile, vs_AllFileData);
-				dbms_output.put_line(vs_AllFileData);
+				--dbms_output.put_line(vs_AllFileData);
 			
 				ParseFileData(vs_AllFileData);
 			EXCEPTION
