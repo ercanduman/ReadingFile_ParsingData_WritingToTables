@@ -10,6 +10,7 @@ CREATE OR REPLACE PACKAGE EDUMAN.BILLINGSYSTEM
   **************************************************************************************/
  IS
 
+	PROCEDURE StartToProcess;
 
 END BILLINGSYSTEM;
 /

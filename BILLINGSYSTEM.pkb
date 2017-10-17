@@ -30,6 +30,25 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		vs_ProductName := regexp_substr(vs_AllFileData, '[^|]+', 1, 5);
 		vn_Fee         := regexp_substr(vs_AllFileData, '[^|]+', 1, 6);
 	
+		INSERT INTO eduman.billing_invoices
+			(invoice_id,
+			 msisdn,
+			 service_name,
+			 start_date,
+			 end_date,
+			 product_name,
+			 fee,
+			 gross_fee)
+		VALUES
+			(eduman.seq_billing_invoices_id.nextval,
+			 vs_Msisdn,
+			 vs_Service,
+			 vd_StartDate,
+			 vd_EndDate,
+			 vs_ProductName,
+			 vn_Fee,
+			 (vn_Fee * 1.43));
+	
 		dbms_output.put_line('INFO> vs_Msisdn: ' || vs_Msisdn);
 		dbms_output.put_line('INFO> vs_Service: ' || vs_Service);
 		dbms_output.put_line('INFO> vd_StartDate: ' || vd_StartDate);
@@ -78,11 +97,13 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	
 	END;
 
+	PROCEDURE StartToProcess IS
 	BEGIN
 		GetGlobalConfigurations;
 	
 		ReadFileData;
 	
+	END StartToProcess;
 
 END BILLINGSYSTEM;
 /
