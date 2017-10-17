@@ -21,6 +21,8 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		vd_EndDate     DATE;
 		vs_ProductName VARCHAR(20);
 		vn_Fee         NUMBER;
+		vn_GrossFee    NUMBER;
+	
 	BEGIN
 	
 		vs_msisdn      := regexp_substr(vs_AllFileData, '[^|]+', 1, 1);
@@ -48,25 +50,16 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			 vs_ProductName,
 			 vn_Fee,
 			 (vn_Fee * 1.43));
-	
-		dbms_output.put_line('INFO> vs_Msisdn: ' || vs_Msisdn);
-		dbms_output.put_line('INFO> vs_Service: ' || vs_Service);
-		dbms_output.put_line('INFO> vd_StartDate: ' || vd_StartDate);
-		dbms_output.put_line('INFO> vd_EndDate: ' || vd_EndDate);
-		dbms_output.put_line('INFO> vs_ProductName: ' || vs_ProductName);
-		dbms_output.put_line('INFO> vn_Fee: ' || vn_Fee);
+		COMMIT;
 	
 	END i_BillingInvoices;
 
-	-- Refactored procedure GetGlobalConfigurations 
 	PROCEDURE GetGlobalConfigurations IS
 	BEGIN
 		gs_OutDirectoryName := 'USER_DIR';
 		gs_OutFileName      := 'invoice_230917.txt';
 	END GetGlobalConfigurations;
 
-	-- Private variable declarations
-	-- Function and procedure implementations
 	PROCEDURE ReadFileData IS
 		vt_OutFile UTL_FILE.FILE_TYPE;
 	
