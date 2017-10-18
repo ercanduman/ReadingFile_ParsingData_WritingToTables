@@ -16,7 +16,8 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	gs_FilePrefix       eduman.billing_global_config.file_prefix%TYPE;
 	gs_OutFileName      VARCHAR2(50);
 
-	cs_WA_NAME eduman.billing_global_config.wa_name%TYPE := 'BILLINGSYSTEM';
+	cs_WA_NAME                 eduman.billing_global_config.wa_name%TYPE := 'BILLINGSYSTEM';
+	cn_StringFormatColumnCount NUMBER := 6;
 
 	PROCEDURE GetGlobalConfigurations IS
 	BEGIN
@@ -27,8 +28,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		 WHERE wa_name = cs_WA_NAME;
 	
 		gs_OutFileName := to_char(SYSDATE, 'ddmmyyyy');
-		gs_OutFileName := gs_FilePrefix || gs_OutFileName || '.txt';
-		dbms_output.put_line('INFO> gs_OutFileName: ' || gs_OutFileName); -- File format: invoice_230917.txt
+		gs_OutFileName := gs_FilePrefix || gs_OutFileName || '.txt'; -- File format: invoice_230917.txt
 	
 	END GetGlobalConfigurations;
 
@@ -57,11 +57,8 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	
 		vn_GrossFee := (nvl((vn_KDVTaxRate + vn_OIVTaxRate) / 100, 0) + 1) *
 									 pin_Fee;
-		dbms_output.put_line('INFO> Fee: ' || pin_Fee || ' vn_GrossFee: ' ||
-												 vn_GrossFee);
 	
 		u_BillingInvoices(vs_Msisdn, vn_GrossFee);
-	
 	END CalculateGrossFee;
 
 	PROCEDURE i_BillingInvoices(vs_Msisdn      IN OUT VARCHAR,
@@ -96,7 +93,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	
 	END i_BillingInvoices;
 
-	PROCEDURE ParseFileData(vs_AllFileData IN OUT VARCHAR2) IS
+	PROCEDURE ParseFileData(pis_FileRowData IN OUT VARCHAR2) IS
 		vs_Msisdn      VARCHAR(2000);
 		vs_Service     VARCHAR(2000);
 		vd_StartDate   DATE;
@@ -106,60 +103,99 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	
 	BEGIN
 	
-		vs_msisdn      := regexp_substr(vs_AllFileData,
+		vs_msisdn      := regexp_substr(pis_FileRowData,
 																		'[^' || gs_FileSeparator || ']+',
 																		1,
 																		1);
-		vs_Service     := regexp_substr(vs_AllFileData,
+		vs_Service     := regexp_substr(pis_FileRowData,
 																		'[^' || gs_FileSeparator || ']+',
 																		1,
 																		2);
-		vd_StartDate   := regexp_substr(vs_AllFileData,
+		vd_StartDate   := regexp_substr(pis_FileRowData,
 																		'[^' || gs_FileSeparator || ']+',
 																		1,
 																		3);
-		vd_EndDate     := regexp_substr(vs_AllFileData,
+		vd_EndDate     := regexp_substr(pis_FileRowData,
 																		'[^' || gs_FileSeparator || ']+',
 																		1,
 																		4);
-		vs_ProductName := regexp_substr(vs_AllFileData,
+		vs_ProductName := regexp_substr(pis_FileRowData,
 																		'[^' || gs_FileSeparator || ']+',
 																		1,
 																		5);
-		vn_Fee         := regexp_substr(vs_AllFileData,
+		vn_Fee         := regexp_substr(pis_FileRowData,
 																		'[^' || gs_FileSeparator || ']+',
 																		1,
 																		6);
 	
-		i_BillingInvoices(vs_Msisdn,
-											vs_Service,
-											vd_StartDate,
-											vd_EndDate,
-											vs_ProductName,
-											vn_Fee);
+		dbms_output.put_line('INFO> vs_Msisdn: ' || vs_Msisdn);
+		dbms_output.put_line('INFO> vs_Service: ' || vs_Service);
+		dbms_output.put_line('INFO> vd_StartDate: ' || vd_StartDate);
+		dbms_output.put_line('INFO> vd_EndDate: ' || vd_EndDate);
+		dbms_output.put_line('INFO> vs_ProductName: ' || vs_ProductName);
+		dbms_output.put_line('INFO> vn_Fee: ' || vn_Fee);
+		/*i_BillingInvoices(vs_Msisdn,
+    vs_Service,
+    vd_StartDate,
+    vd_EndDate,
+    vs_ProductName,
+    vn_Fee);*/
 	
+	EXCEPTION
+		WHEN OTHERS THEN
+			dbms_output.put_line('ERROR> ' || SQLERRM ||
+													 dbms_utility.format_error_backtrace);
 	END ParseFileData;
+
+	PROCEDURE CheckDataFormat(pis_FileRow IN OUT VARCHAR2) IS
+		vn_StringFormatCount NUMBER := 0;
+	BEGIN
+		vn_StringFormatCount := REGEXP_COUNT(pis_FileRow, '[^|]+', 1, 'i');
+	
+		IF vn_StringFormatCount <> cn_StringFormatColumnCount
+		THEN
+			dbms_output.put_line('ERROR> Wrong Data Format!');
+			dbms_output.put_line('INFO> Data format should be as: ' || chr(10) ||
+			ParseFileData(pis_FileRow);
+		ELSE
+			dbms_output.put_line('INFO> Correct format, Start execution!');
+		
+		END IF;
+	
+	END CheckDataFormat;
 
 	PROCEDURE ReadFileData IS
 		vt_OutFile UTL_FILE.FILE_TYPE;
 	
-		vs_AllFileData VARCHAR2(3000);
+		vs_FileRowData VARCHAR2(3000);
 	BEGIN
 	
 		BEGIN
 			vt_OutFile := UTL_FILE.FOPEN(gs_OutDirectoryName, gs_OutFileName, 'R');
 		EXCEPTION
 			WHEN OTHERS THEN
-				dbms_output.put_line('INFO!> Error occurred with file operation. Please check privileges and file name/directory name!');
+				dbms_output.put_line('INFO!> Error occurred with file operation. Please check privileges or file name and directory name!');
 		END;
 		LOOP
 			BEGIN
-				UTL_FILE.GET_LINE(vt_OutFile, vs_AllFileData);
+				UTL_FILE.GET_LINE(vt_OutFile, vs_FileRowData);
 			
-				ParseFileData(vs_AllFileData);
+				IF length(vs_FileRowData) > 0
+					 OR vs_FileRowData IS NOT NULL
+				THEN
+					CheckDataFormat(vs_FileRowData);
+				ELSE
+					RAISE NO_DATA_FOUND;
+				END IF;
+			
 			EXCEPTION
-				WHEN no_data_found THEN
-					dbms_output.put_line('INFO> All data loaded!');
+				WHEN NO_DATA_FOUND THEN
+					IF vs_FileRowData IS NOT NULL
+					THEN
+						dbms_output.put_line('INFO> All data loaded!');
+					ELSE
+						dbms_output.put_line('ERROR> File is Empty!');
+					END IF;
 					EXIT;
 			END;
 		END LOOP;
@@ -171,16 +207,15 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	EXCEPTION
 		WHEN OTHERS THEN
 			dbms_output.put_line('ERROR> Error occurred! ' || SQLERRM);
-		
 	END;
 
 	PROCEDURE StartToProcess IS
 	BEGIN
+	
 		GetGlobalConfigurations;
 	
 		ReadFileData;
 	
 	END StartToProcess;
-
 END BILLINGSYSTEM;
 /
