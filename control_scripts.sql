@@ -1,4 +1,4 @@
-SELECT * FROM eduman.billing_invoices;
+SELECT * FROM eduman.billing_invoices order by invoice_id desc;
 SELECT * FROM eduman.billing_product_types;
 SELECT * FROM eduman.billing_global_config WHERE wa_name = 'BILLINGSYSTEM';
 

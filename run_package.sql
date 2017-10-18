@@ -1,0 +1,3 @@
+BEGIN
+	EDUMAN.BILLINGSYSTEM.StartToProcess;
+END;

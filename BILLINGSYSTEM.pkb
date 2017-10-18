@@ -32,6 +32,15 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	
 	END GetGlobalConfigurations;
 
+	PROCEDURE u_BillingInvoices(vs_Msisdn   IN OUT VARCHAR,
+															vn_GrossFee IN OUT eduman.billing_invoices.gross_fee%TYPE) IS
+	BEGIN
+		UPDATE eduman.billing_invoices bi
+			 SET bi.gross_fee = vn_GrossFee
+		 WHERE msisdn = vs_Msisdn;
+		COMMIT;
+	END u_BillingInvoices;
+
 	PROCEDURE CalculateGrossFee(vs_Msisdn IN OUT VARCHAR,
 															pin_Fee   IN OUT NUMBER) IS
 	
@@ -51,10 +60,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		dbms_output.put_line('INFO> Fee: ' || pin_Fee || ' vn_GrossFee: ' ||
 												 vn_GrossFee);
 	
-		UPDATE eduman.billing_invoices bi
-			 SET bi.gross_fee = vn_GrossFee
-		 WHERE msisdn = vs_Msisdn;
-		COMMIT;
+		u_BillingInvoices(vs_Msisdn, vn_GrossFee);
 	
 	END CalculateGrossFee;
 
@@ -140,11 +146,15 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		vs_AllFileData VARCHAR2(3000);
 	BEGIN
 	
-		vt_OutFile := UTL_FILE.FOPEN(gs_OutDirectoryName, gs_OutFileName, 'R');
+		BEGIN
+			vt_OutFile := UTL_FILE.FOPEN(gs_OutDirectoryName, gs_OutFileName, 'R');
+		EXCEPTION
+			WHEN OTHERS THEN
+				dbms_output.put_line('INFO!> Error occurred with file operation. Please check privileges and file name/directory name!');
+		END;
 		LOOP
 			BEGIN
 				UTL_FILE.GET_LINE(vt_OutFile, vs_AllFileData);
-				--dbms_output.put_line(vs_AllFileData);
 			
 				ParseFileData(vs_AllFileData);
 			EXCEPTION
@@ -158,7 +168,10 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		THEN
 			UTL_FILE.FCLOSE(vt_OutFile);
 		END IF;
-	
+	EXCEPTION
+		WHEN OTHERS THEN
+			dbms_output.put_line('ERROR> Error occurred! ' || SQLERRM);
+		
 	END;
 
 	PROCEDURE StartToProcess IS
