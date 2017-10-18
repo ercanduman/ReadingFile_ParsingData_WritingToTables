@@ -59,6 +59,10 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 									 pin_Fee;
 	
 		u_BillingInvoices(vs_Msisdn, vn_GrossFee);
+	EXCEPTION
+		WHEN OTHERS THEN
+			dbms_output.put_line('ERROR> ' || SQLERRM ||
+													 dbms_utility.format_error_backtrace);
 	END CalculateGrossFee;
 
 	PROCEDURE i_BillingInvoices(vs_Msisdn      IN OUT VARCHAR,
@@ -90,56 +94,38 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		COMMIT;
 	
 		CalculateGrossFee(vs_Msisdn, pin_Fee);
-	
+	EXCEPTION
+		WHEN OTHERS THEN
+			dbms_output.put_line('ERROR> ' || SQLERRM ||
+													 dbms_utility.format_error_backtrace);
 	END i_BillingInvoices;
 
 	PROCEDURE ParseFileData(pis_FileRowData IN OUT VARCHAR2) IS
-		vs_Msisdn      VARCHAR(2000);
-		vs_Service     VARCHAR(2000);
-		vd_StartDate   DATE;
-		vd_EndDate     DATE;
-		vs_ProductName VARCHAR(200);
-		vn_Fee         NUMBER;
-	
+		vt_FileRowDataArray dbms_sql.varchar2_table;
 	BEGIN
 	
-		vs_msisdn      := regexp_substr(pis_FileRowData,
-																		'[^' || gs_FileSeparator || ']+',
-																		1,
-																		1);
-		vs_Service     := regexp_substr(pis_FileRowData,
-																		'[^' || gs_FileSeparator || ']+',
-																		1,
-																		2);
-		vd_StartDate   := regexp_substr(pis_FileRowData,
-																		'[^' || gs_FileSeparator || ']+',
-																		1,
-																		3);
-		vd_EndDate     := regexp_substr(pis_FileRowData,
-																		'[^' || gs_FileSeparator || ']+',
-																		1,
-																		4);
-		vs_ProductName := regexp_substr(pis_FileRowData,
-																		'[^' || gs_FileSeparator || ']+',
-																		1,
-																		5);
-		vn_Fee         := regexp_substr(pis_FileRowData,
-																		'[^' || gs_FileSeparator || ']+',
-																		1,
-																		6);
+		FOR i IN 1 .. 6
+		LOOP
+			vt_FileRowDataArray(i) := regexp_substr(pis_FileRowData,
+																							'[^' || gs_FileSeparator || ']+',
+																							1,
+																							i);
+		END LOOP;
 	
-		dbms_output.put_line('INFO> vs_Msisdn: ' || vs_Msisdn);
-		dbms_output.put_line('INFO> vs_Service: ' || vs_Service);
-		dbms_output.put_line('INFO> vd_StartDate: ' || vd_StartDate);
-		dbms_output.put_line('INFO> vd_EndDate: ' || vd_EndDate);
-		dbms_output.put_line('INFO> vs_ProductName: ' || vs_ProductName);
-		dbms_output.put_line('INFO> vn_Fee: ' || vn_Fee);
-		/*i_BillingInvoices(vs_Msisdn,
-    vs_Service,
-    vd_StartDate,
-    vd_EndDate,
-    vs_ProductName,
-    vn_Fee);*/
+		dbms_output.put_line('INFO> vs_Msisdn: ' || vt_FileRowDataArray(1));
+		dbms_output.put_line('INFO> vs_Service: ' || vt_FileRowDataArray(2));
+		dbms_output.put_line('INFO> vd_StartDate: ' || vt_FileRowDataArray(3));
+		dbms_output.put_line('INFO> vd_EndDate: ' || vt_FileRowDataArray(4));
+		dbms_output.put_line('INFO> vs_ProductName: ' ||
+												 vt_FileRowDataArray(5));
+		dbms_output.put_line('INFO> vn_Fee: ' || vt_FileRowDataArray(6));
+	
+		i_BillingInvoices(vt_FileRowDataArray(1),
+											vt_FileRowDataArray(2),
+											vt_FileRowDataArray(3),
+											vt_FileRowDataArray(4),
+											vt_FileRowDataArray(5),
+											vt_FileRowDataArray(6));
 	
 	EXCEPTION
 		WHEN OTHERS THEN
@@ -151,15 +137,17 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		vn_StringFormatCount NUMBER := 0;
 	BEGIN
 		vn_StringFormatCount := REGEXP_COUNT(pis_FileRow, '[^|]+', 1, 'i');
-	
+		dbms_output.put_line('INFO>vn_StringFormatCount: ' ||
+												 vn_StringFormatCount);
 		IF vn_StringFormatCount <> cn_StringFormatColumnCount
 		THEN
 			dbms_output.put_line('ERROR> Wrong Data Format!');
-			dbms_output.put_line('INFO> Data format should be as: ' || chr(10) ||
+			--      dbms_output.put_line('INFO> Data format should be as: ' || chr(10) ||
+			--   '''MSISDN|Service_Name|Start_Date|End_Date|Product_Name|Fee'' i.e.''5552550000|Aylik 1 GB Paketi|23.08.2017|23.09.2017|DATA|15''');
 			ParseFileData(pis_FileRow);
 		ELSE
 			dbms_output.put_line('INFO> Correct format, Start execution!');
-		
+			ParseFileData(pis_FileRow);
 		END IF;
 	
 	END CheckDataFormat;
