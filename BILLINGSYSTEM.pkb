@@ -16,6 +16,11 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	gs_FilePrefix       eduman.billing_global_config.file_prefix%TYPE;
 	gs_OutFileName      VARCHAR2(50);
 
+	gs_InvoiceRemarkSuccess eduman.billing_invoices.remark%TYPE := 'Execution SUCCESSFUL!';
+	gs_InvoiceRemarkFailure eduman.billing_invoices.remark%TYPE := 'Execution FAILED!';
+	gs_InvoiceStatusSuccess eduman.billing_invoices.status%TYPE := 'S';
+	gs_InvoiceStatusFailure eduman.billing_invoices.status%TYPE := 'F';
+
 	cs_WA_NAME                 eduman.billing_global_config.wa_name%TYPE := 'BILLINGSYSTEM';
 	cn_StringFormatColumnCount NUMBER := 6;
 
@@ -53,32 +58,37 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		vn_GrossFee   eduman.billing_invoices.gross_fee%TYPE := NULL;
 	
 	BEGIN
-		SELECT DISTINCT kdv_tax_rate, oiv_tax_rate
-			INTO vn_KDVTaxRate, vn_OIVTaxRate
-			FROM eduman.billing_invoices bi, eduman.billing_product_types bp
-		 WHERE bi.product_name = bp.product_name
-			 AND msisdn = vs_Msisdn;
+		BEGIN
+			SELECT DISTINCT kdv_tax_rate, oiv_tax_rate
+				INTO vn_KDVTaxRate, vn_OIVTaxRate
+				FROM eduman.billing_invoices bi, eduman.billing_product_types bp
+			 WHERE bi.product_name = bp.product_name
+				 AND msisdn = vs_Msisdn;
+		
+		EXCEPTION
+			WHEN OTHERS THEN
+				dbms_output.put_line('ERROR> ' || SQLERRM ||
+														 dbms_utility.format_error_backtrace);
+		END;
 	
-		-- calculation of gross fee
+		-- Calculation of gross fee
 		vn_GrossFee := (nvl((vn_KDVTaxRate + vn_OIVTaxRate) / 100, 0) + 1) *
 									 pin_Fee;
+		dbms_output.put_line('INFO> vn_GrossFee: ' || vn_GrossFee);
 	
 		u_BillingInvoices(vs_Msisdn, vn_GrossFee);
-	EXCEPTION
-		WHEN OTHERS THEN
-			dbms_output.put_line('ERROR> ' || SQLERRM ||
-													 dbms_utility.format_error_backtrace);
 	END CalculateGrossFee;
 
-	PROCEDURE i_BillingInvoices(vs_Msisdn      IN OUT VARCHAR,
-															vs_Service     IN OUT VARCHAR,
-															vd_StartDate   IN OUT DATE,
-															vd_EndDate     IN OUT DATE,
-															vs_ProductName IN OUT VARCHAR,
-															pin_Fee        IN OUT NUMBER) IS
+	PROCEDURE i_BillingInvoices(vs_Msisdn         IN OUT eduman.billing_invoices.msisdn%TYPE,
+															vs_Service        IN eduman.billing_invoices.service_name%TYPE,
+															vd_StartDate      IN eduman.billing_invoices.start_date%TYPE,
+															vd_EndDate        IN eduman.billing_invoices.end_date%TYPE,
+															vs_ProductName    IN eduman.billing_invoices.product_name%TYPE,
+															pin_Fee           IN OUT eduman.billing_invoices.fee%TYPE,
+															pis_ProcessedData IN eduman.billing_invoices.processed_data%TYPE) IS
 	
 	BEGIN
-		INSERT INTO eduman.billing_invoices
+		INSERT INTO eduman.billing_invoices bi
 			(invoice_id,
 			 msisdn,
 			 service_name,
@@ -86,6 +96,9 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			 end_date,
 			 product_name,
 			 fee,
+			 Processed_Data,
+			 remark,
+			 status,
 			 process_time)
 		VALUES
 			(eduman.seq_billing_invoices_id.nextval,
@@ -95,10 +108,32 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			 vd_EndDate,
 			 vs_ProductName,
 			 pin_Fee,
+			 pis_ProcessedData,
+			 gs_InvoiceRemarkSuccess,
+			 gs_InvoiceStatusSuccess,
 			 SYSDATE);
 		COMMIT;
 	
 		CalculateGrossFee(vs_Msisdn, pin_Fee);
+	
+	EXCEPTION
+		WHEN OTHERS THEN
+			dbms_output.put_line('ERROR> ' || SQLERRM ||
+													 dbms_utility.format_error_backtrace);
+	END i_BillingInvoices;
+
+	PROCEDURE i_BillingInvoices(vs_ProcessedData IN eduman.billing_invoices.processed_data%TYPE) IS
+	BEGIN
+		INSERT INTO eduman.billing_invoices
+			(invoice_id, processed_data, remark, status, process_time)
+		VALUES
+			(eduman.seq_billing_invoices_id.nextval,
+			 vs_ProcessedData,
+			 gs_InvoiceRemarkFailure || ' Wrong data format!',
+			 gs_InvoiceStatusFailure,
+			 SYSDATE);
+		COMMIT;
+	
 	EXCEPTION
 		WHEN OTHERS THEN
 			dbms_output.put_line('ERROR> ' || SQLERRM ||
@@ -130,7 +165,8 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
     vt_FileRowDataArray(3),
     vt_FileRowDataArray(4),
     vt_FileRowDataArray(5),
-    vt_FileRowDataArray(6));*/
+    vt_FileRowDataArray(6),
+    pis_FileRowData);*/
 	
 	EXCEPTION
 		WHEN OTHERS THEN
@@ -140,17 +176,21 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 
 	PROCEDURE CheckDataFormat(pis_FileRow IN OUT VARCHAR2) IS
 		vn_StringFormatCount NUMBER := 0;
+		vs_ProcessedData     eduman.billing_invoices.processed_data%TYPE;
 	BEGIN
 		vn_StringFormatCount := REGEXP_COUNT(pis_FileRow, '[^|]+', 1, 'i');
 		dbms_output.put_line('INFO>vn_StringFormatCount: ' ||
 												 vn_StringFormatCount);
+		vs_ProcessedData := nvl(pis_FileRow, 'Empty Row!');
 		IF vn_StringFormatCount <> cn_StringFormatColumnCount
 			 OR vn_StringFormatCount IS NULL
 		THEN
 			dbms_output.put_line('ERROR> Wrong Data Format! The data found is ''' ||
-													 nvl(pis_FileRow, 'Empty Row!') || '''');
+													 vs_ProcessedData || '''');
 			dbms_output.put_line('INFO> Data format should be as: ' || chr(10) ||
 													 '''MSISDN|Service_Name|Start_Date|End_Date|Product_Name|Fee'' i.e.''5552550000|Aylik 1 GB Paketi|23.08.2017|23.09.2017|DATA|15''');
+		
+			i_BillingInvoices(vs_ProcessedData);
 		ELSE
 			dbms_output.put_line('INFO> Correct format, start execution!');
 			ParseFileData(pis_FileRow);
