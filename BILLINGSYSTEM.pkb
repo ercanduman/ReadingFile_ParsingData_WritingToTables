@@ -22,13 +22,13 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	PROCEDURE GetGlobalConfigurations IS
 	BEGIN
 	
-		SELECT bg.file_separator, bg.directory_name, bg.file_prefix
+		SELECT file_separator, directory_name, file_prefix
 			INTO gs_FileSeparator, gs_OutDirectoryName, gs_FilePrefix
-			FROM eduman.billing_global_config bg
+			FROM eduman.billing_global_config
 		 WHERE wa_name = cs_WA_NAME;
 	
 		gs_OutFileName := to_char(SYSDATE, 'ddmmyyyy');
-		gs_OutFileName := gs_FilePrefix || gs_OutFileName || '.txt'; -- File format: invoice_230917.txt
+		gs_OutFileName := gs_FilePrefix || gs_OutFileName || '.txt'; -- File format: invoice_23092017.txt
 	
 	END GetGlobalConfigurations;
 
@@ -39,6 +39,10 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			 SET bi.gross_fee = vn_GrossFee
 		 WHERE msisdn = vs_Msisdn;
 		COMMIT;
+	EXCEPTION
+		WHEN OTHERS THEN
+			dbms_output.put_line('ERROR> ' || SQLERRM ||
+													 dbms_utility.format_error_backtrace);
 	END u_BillingInvoices;
 
 	PROCEDURE CalculateGrossFee(vs_Msisdn IN OUT VARCHAR,
@@ -55,6 +59,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		 WHERE bi.product_name = bp.product_name
 			 AND msisdn = vs_Msisdn;
 	
+		-- calculation of gross fee
 		vn_GrossFee := (nvl((vn_KDVTaxRate + vn_OIVTaxRate) / 100, 0) + 1) *
 									 pin_Fee;
 	
@@ -104,7 +109,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		vt_FileRowDataArray dbms_sql.varchar2_table;
 	BEGIN
 	
-		FOR i IN 1 .. 6
+		FOR i IN 1 .. cn_StringFormatColumnCount
 		LOOP
 			vt_FileRowDataArray(i) := regexp_substr(pis_FileRowData,
 																							'[^' || gs_FileSeparator || ']+',
@@ -120,12 +125,12 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 												 vt_FileRowDataArray(5));
 		dbms_output.put_line('INFO> vn_Fee: ' || vt_FileRowDataArray(6));
 	
-		i_BillingInvoices(vt_FileRowDataArray(1),
-											vt_FileRowDataArray(2),
-											vt_FileRowDataArray(3),
-											vt_FileRowDataArray(4),
-											vt_FileRowDataArray(5),
-											vt_FileRowDataArray(6));
+		/*    i_BillingInvoices(vt_FileRowDataArray(1),
+    vt_FileRowDataArray(2),
+    vt_FileRowDataArray(3),
+    vt_FileRowDataArray(4),
+    vt_FileRowDataArray(5),
+    vt_FileRowDataArray(6));*/
 	
 	EXCEPTION
 		WHEN OTHERS THEN
@@ -140,13 +145,14 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		dbms_output.put_line('INFO>vn_StringFormatCount: ' ||
 												 vn_StringFormatCount);
 		IF vn_StringFormatCount <> cn_StringFormatColumnCount
+			 OR vn_StringFormatCount IS NULL
 		THEN
-			dbms_output.put_line('ERROR> Wrong Data Format!');
-			--      dbms_output.put_line('INFO> Data format should be as: ' || chr(10) ||
-			--   '''MSISDN|Service_Name|Start_Date|End_Date|Product_Name|Fee'' i.e.''5552550000|Aylik 1 GB Paketi|23.08.2017|23.09.2017|DATA|15''');
-			ParseFileData(pis_FileRow);
+			dbms_output.put_line('ERROR> Wrong Data Format! The data found is ''' ||
+													 nvl(pis_FileRow, 'Empty Row!') || '''');
+			dbms_output.put_line('INFO> Data format should be as: ' || chr(10) ||
+													 '''MSISDN|Service_Name|Start_Date|End_Date|Product_Name|Fee'' i.e.''5552550000|Aylik 1 GB Paketi|23.08.2017|23.09.2017|DATA|15''');
 		ELSE
-			dbms_output.put_line('INFO> Correct format, Start execution!');
+			dbms_output.put_line('INFO> Correct format, start execution!');
 			ParseFileData(pis_FileRow);
 		END IF;
 	
@@ -162,19 +168,13 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			vt_OutFile := UTL_FILE.FOPEN(gs_OutDirectoryName, gs_OutFileName, 'R');
 		EXCEPTION
 			WHEN OTHERS THEN
-				dbms_output.put_line('INFO!> Error occurred with file operation. Please check privileges or file name and directory name!');
+				dbms_output.put_line('INFO!> Error occurred with file operation. Please check privileges or file name and/or directory name!');
 		END;
 		LOOP
 			BEGIN
 				UTL_FILE.GET_LINE(vt_OutFile, vs_FileRowData);
 			
-				IF length(vs_FileRowData) > 0
-					 OR vs_FileRowData IS NOT NULL
-				THEN
-					CheckDataFormat(vs_FileRowData);
-				ELSE
-					RAISE NO_DATA_FOUND;
-				END IF;
+				CheckDataFormat(vs_FileRowData);
 			
 			EXCEPTION
 				WHEN NO_DATA_FOUND THEN
