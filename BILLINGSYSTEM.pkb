@@ -181,6 +181,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		vn_InvoiceId eduman.billing_invoices.invoice_id%TYPE;
 	BEGIN
 		vn_InvoiceId := eduman.seq_billing_invoices_id.nextval;
+	
 		INSERT INTO eduman.billing_invoices bi
 			(invoice_id,
 			 msisdn,
@@ -195,14 +196,14 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			 process_time)
 		VALUES
 			(vn_InvoiceId,
-			 pis_Msisdn,
-			 pis_Service,
+			 SUBSTR(pis_Msisdn, 0, 10),
+			 SUBSTR(pis_Service, 0, 50),
 			 pid_StartDate,
 			 pid_EndDate,
-			 pis_ProductName,
+			 SUBSTR(pis_ProductName, 0, 50),
 			 pion_Fee,
-			 pis_ProcessedData,
-			 gs_InvoiceRemarkSuccess,
+			 SUBSTR(pis_ProcessedData, 0, 2000),
+			 SUBSTR(gs_InvoiceRemarkSuccess, 0, 2000),
 			 gs_InvoiceStatusSuccess,
 			 SYSDATE);
 		COMMIT;

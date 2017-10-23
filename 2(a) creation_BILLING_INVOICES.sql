@@ -1,14 +1,14 @@
 create table EDUMAN.BILLING_INVOICES (
 	Invoice_Id   	NUMBER PRIMARY KEY,
-	MSISDN       	VARCHAR(13),
+	MSISDN       	VARCHAR(10),
 	Service_Name 	VARCHAR(50),
 	Start_Date   	DATE,
 	End_Date     	DATE,
 	Product_Name 	VARCHAR(50),
 	Fee          	NUMBER,
 	Gross_Fee    	NUMBER,
-	Remark          VARCHAR (1000),
-	Processed_Data 	VARCHAR (1000),
+	Remark          VARCHAR (2000),
+	Processed_Data 	VARCHAR (2000),
 	Status       	VARCHAR (1),
 	Process_Time 	DATE
 );
