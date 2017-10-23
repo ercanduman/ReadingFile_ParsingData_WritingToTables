@@ -12,13 +12,13 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 
 	-- Private constant declarations
 	cs_WA_NAME              CONSTANT eduman.billing_global_config.wa_name%TYPE := 'BILLINGSYSTEM';
-	gs_InvoiceRemarkSuccess CONSTANT eduman.billing_invoices.remark%TYPE := 'Execution SUCCESSFUL!';
-	gs_InvoiceRemarkFailure CONSTANT eduman.billing_invoices.remark%TYPE := 'Execution FAILED!';
+	gs_InvoiceRemarkSuccess CONSTANT eduman.billing_invoices.remark%TYPE := 'Execution SUCCESSFUL! ';
+	gs_InvoiceRemarkFailure CONSTANT eduman.billing_invoices.remark%TYPE := 'Execution FAILED! ';
 	gs_InvoiceStatusSuccess CONSTANT eduman.billing_invoices.status%TYPE := 'S';
 	gs_InvoiceStatusFailure CONSTANT eduman.billing_invoices.status%TYPE := 'F';
-	gs_ErrorDataFormat      CONSTANT eduman.billing_invoices.remark%TYPE := 'Wrong Data Format!';
-	gs_ErrorEmptyRow        CONSTANT eduman.billing_invoices.remark%TYPE := 'Empty Row!';
-	gs_ErrorEmptyFile       CONSTANT eduman.billing_invoices.remark%TYPE := 'Empty File!';
+	gs_ErrorDataFormat      CONSTANT eduman.billing_invoices.remark%TYPE := 'Wrong Data Format! ';
+	gs_ErrorEmptyRow        CONSTANT eduman.billing_invoices.remark%TYPE := 'Empty Row! ';
+	gs_ErrorEmptyFile       CONSTANT eduman.billing_invoices.remark%TYPE := 'Empty File! ';
 
 	gs_OutDirectoryName eduman.billing_global_config.directory_name%TYPE;
 	gs_FileSeparator    eduman.billing_global_config.file_separator%TYPE;
@@ -215,7 +215,8 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 													 dbms_utility.format_error_backtrace);
 	END i_BillingInvoices;
 
-	PROCEDURE i_BillingInvoices(pis_ProcessedData IN eduman.billing_invoices.processed_data%TYPE)
+	PROCEDURE i_BillingInvoices(pis_ProcessedData IN eduman.billing_invoices.processed_data%TYPE,
+															pis_ErrorInfo     IN eduman.billing_invoices.remark%TYPE)
 	/**************************************************************************************************
     * Purpose    : Insertion of EDUMAN.BILLING_INVOICES table.
     * Notes      : There is another procedure with same name but different variables. This an example of procedure overloading. 
@@ -238,7 +239,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		VALUES
 			(eduman.seq_billing_invoices_id.nextval,
 			 pis_ProcessedData,
-			 gs_InvoiceRemarkFailure || gs_ErrorDataFormat,
+			 gs_InvoiceRemarkFailure || pis_ErrorInfo,
 			 gs_InvoiceStatusFailure,
 			 SYSDATE);
 		COMMIT;
@@ -307,12 +308,8 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
     **************************************************************************************************/
 	 IS
 		vn_StringFormatCount NUMBER := 0;
-		vs_ProcessedData     eduman.billing_invoices.processed_data%TYPE;
 	BEGIN
 		vn_StringFormatCount := REGEXP_COUNT(pios_FileRowData, '[^|]+', 1, 'i');
-	
-		-- Check empty rows!
-		vs_ProcessedData := nvl(pios_FileRowData, gs_ErrorEmptyRow);
 	
 		IF vn_StringFormatCount <> gn_ColumnCount
 			 OR vn_StringFormatCount IS NULL
@@ -320,11 +317,17 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			gn_ExecutionsFailureCount := gn_ExecutionsFailureCount + 1;
 		
 			dbms_output.put_line('ERROR> Wrong Data Format! The data found is ''' ||
-													 vs_ProcessedData || '''');
+													 pios_FileRowData || '''');
 			dbms_output.put_line('INFO> Data format should be as: ' || chr(10) ||
 													 '''MSISDN|Service_Name|Start_Date|End_Date|Product_Name|Fee'' i.e.''5552550000|Aylik 1 GB Paketi|23.08.2017|23.09.2017|DATA|15''');
 		
-			i_BillingInvoices(vs_ProcessedData);
+			IF pios_FileRowData IS NULL
+			THEN
+				i_BillingInvoices(pios_FileRowData, gs_ErrorEmptyRow);
+			ELSE
+				i_BillingInvoices(pios_FileRowData, gs_ErrorDataFormat);
+			END IF;
+		
 		ELSE
 		
 			ParseFileData(pios_FileRowData);
