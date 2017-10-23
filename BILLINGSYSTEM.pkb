@@ -9,8 +9,16 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
   **************************************************************************************/
 
  IS
+
 	-- Private constant declarations
-	cs_WA_NAME eduman.billing_global_config.wa_name%TYPE := 'BILLINGSYSTEM';
+	cs_WA_NAME              CONSTANT eduman.billing_global_config.wa_name%TYPE := 'BILLINGSYSTEM';
+	gs_InvoiceRemarkSuccess CONSTANT eduman.billing_invoices.remark%TYPE := 'Execution SUCCESSFUL!';
+	gs_InvoiceRemarkFailure CONSTANT eduman.billing_invoices.remark%TYPE := 'Execution FAILED!';
+	gs_InvoiceStatusSuccess CONSTANT eduman.billing_invoices.status%TYPE := 'S';
+	gs_InvoiceStatusFailure CONSTANT eduman.billing_invoices.status%TYPE := 'F';
+	gs_ErrorDataFormat      CONSTANT eduman.billing_invoices.remark%TYPE := 'Wrong Data Format!';
+	gs_ErrorEmptyRow        CONSTANT eduman.billing_invoices.remark%TYPE := 'Empty Row!';
+	gs_ErrorEmptyFile       CONSTANT eduman.billing_invoices.remark%TYPE := 'Empty File!';
 
 	gs_OutDirectoryName eduman.billing_global_config.directory_name%TYPE;
 	gs_FileSeparator    eduman.billing_global_config.file_separator%TYPE;
@@ -18,11 +26,6 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	gn_ColumnCount      eduman.billing_global_config.stringcolumncount%TYPE;
 
 	gs_OutFileName VARCHAR2(50);
-
-	gs_InvoiceRemarkSuccess eduman.billing_invoices.remark%TYPE := 'Execution SUCCESSFUL!';
-	gs_InvoiceRemarkFailure eduman.billing_invoices.remark%TYPE := 'Execution FAILED!';
-	gs_InvoiceStatusSuccess eduman.billing_invoices.status%TYPE := 'S';
-	gs_InvoiceStatusFailure eduman.billing_invoices.status%TYPE := 'F';
 
 	gs_ExecutionsLogStatus    eduman.billing_inv_wa_log.status%TYPE := 'S';
 	gs_ExecutionLogRemark     eduman.billing_inv_wa_log.remark%TYPE := NULL;
@@ -58,15 +61,15 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		gs_OutFileName := gs_FilePrefix || gs_OutFileName || '.txt'; -- File format: invoice_23092017.txt
 	END GetGlobalConfigurations;
 
-	PROCEDURE u_BillingInvoices(pis_Msisdn   IN eduman.billing_invoices.msisdn%TYPE,
-															pin_GrossFee IN eduman.billing_invoices.gross_fee%TYPE,
-															pis_Remark   IN eduman.billing_invoices.remark%TYPE)
+	PROCEDURE u_BillingInvoices(pin_InvoiceId IN eduman.billing_invoices.invoice_id%TYPE,
+															pin_GrossFee  IN eduman.billing_invoices.gross_fee%TYPE,
+															pis_Remark    IN eduman.billing_invoices.remark%TYPE)
 	/**************************************************************************************************
-    * Purpose    : To update EDUMAN.BILLING_INVOICES table for given msisdn.
+    * Purpose    : To update EDUMAN.BILLING_INVOICES table for given invoice id.
     * Notes      : N/A
     * -------------------------------------------------------------------------------------
     * Parameters : 
-      - pis_Msisdn      : Phone number of user that sent to this procedure.
+      - pin_InvoiceId   : Unique Identifier of current execution.
       - pin_GrossFee    : Calculated fee gross amount.
       - pis_Remark      : Output message for each exectuion status.
     * Return     : N/A
@@ -82,7 +85,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		UPDATE eduman.billing_invoices
 			 SET gross_fee = pin_GrossFee,
 					 remark    = pis_Remark
-		 WHERE msisdn = pis_Msisdn; -- invoice id_ ye g�re
+		 WHERE invoice_id = pin_InvoiceId;
 		COMMIT;
 	
 	EXCEPTION
@@ -91,15 +94,15 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 													 dbms_utility.format_error_backtrace);
 	END u_BillingInvoices;
 
-	PROCEDURE CalculateGrossFee(pios_Msisdn IN eduman.billing_invoices.msisdn%TYPE, -- out kald�rlacak
-															pin_Fee     IN eduman.billing_invoices.fee%TYPE)
+	PROCEDURE CalculateGrossFee(pin_InvoiceId IN eduman.billing_invoices.invoice_id%TYPE,
+															pin_Fee       IN eduman.billing_invoices.fee%TYPE)
 	/**************************************************************************************************
     * Purpose    : To calculate gross fee related to fee amount. load all global variable for execution of package.
     * Notes      : Gets fee amount and tax rates then do the calculation as: gross_fee = ((tax_rates/100) +1 )* fee_amount
     * -------------------------------------------------------------------------------------
     * Parameters : 
-      - pios_Msisdn : Phone number of user that retrieved from file data.
-      - pin_Fee     : The price (fee amount) parsed fom file data.
+      - pin_InvoiceId : Unique idetifier of current execution.
+      - pin_Fee       : The price (fee amount) parsed fom file data.
     * Return     : N/A
     * Exceptions : N/A
     * -------------------------------------------------------------------------------------
@@ -121,7 +124,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 				INTO vn_KDVTaxRate, vn_OIVTaxRate, vs_ProductName
 				FROM eduman.billing_invoices bi, eduman.billing_product_types bp
 			 WHERE bi.product_name = bp.product_name
-				 AND msisdn = pios_Msisdn; -- invoice id
+				 AND bi.invoice_id = pin_InvoiceId;
 		
 		EXCEPTION
 			WHEN OTHERS THEN
@@ -144,22 +147,22 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		
 		END IF;
 	
-		u_BillingInvoices(pios_Msisdn, vn_GrossFee, vs_Remark);
+		u_BillingInvoices(pin_InvoiceId, vn_GrossFee, vs_Remark);
 	END CalculateGrossFee;
 
-	PROCEDURE i_BillingInvoices(pios_Msisdn       IN OUT eduman.billing_invoices.msisdn%TYPE,
+	PROCEDURE i_BillingInvoices(pis_Msisdn        IN eduman.billing_invoices.msisdn%TYPE,
 															pis_Service       IN eduman.billing_invoices.service_name%TYPE,
 															pid_StartDate     IN eduman.billing_invoices.start_date%TYPE,
 															pid_EndDate       IN eduman.billing_invoices.end_date%TYPE,
 															pis_ProductName   IN eduman.billing_invoices.product_name%TYPE,
-															pion_Fee          IN OUT eduman.billing_invoices.fee%TYPE,
+															pion_Fee          IN eduman.billing_invoices.fee%TYPE,
 															pis_ProcessedData IN eduman.billing_invoices.processed_data%TYPE)
 	/**************************************************************************************************
     * Purpose    : Insertion of EDUMAN.BILLING_INVOICES table.
     * Notes      : N/A
     * -------------------------------------------------------------------------------------
     * Parameters : 
-      - pios_Msisdn       : Phone number of user that parsed from file data.
+      - pis_Msisdn        : Phone number of user that parsed from file data.
       - pis_Service       : Service name that parsed from file data.
       - pid_StartDate     : Service start time that parsed from file data.
       - pid_EndDate       : Service end time that parsed from file data. 
@@ -175,8 +178,9 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
      | Ercan DUMAN            | 17.10.2017          | Procedure creation.
     **************************************************************************************************/
 	 IS
-	
+		vn_InvoiceId eduman.billing_invoices.invoice_id%TYPE;
 	BEGIN
+		vn_InvoiceId := eduman.seq_billing_invoices_id.nextval;
 		INSERT INTO eduman.billing_invoices bi
 			(invoice_id,
 			 msisdn,
@@ -190,8 +194,8 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			 status,
 			 process_time)
 		VALUES
-			(eduman.seq_billing_invoices_id.nextval,
-			 pios_Msisdn,
+			(vn_InvoiceId,
+			 pis_Msisdn,
 			 pis_Service,
 			 pid_StartDate,
 			 pid_EndDate,
@@ -203,7 +207,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			 SYSDATE);
 		COMMIT;
 	
-		CalculateGrossFee(pios_Msisdn, pion_Fee);
+		CalculateGrossFee(vn_InvoiceId, pion_Fee);
 	
 	EXCEPTION
 		WHEN OTHERS THEN
@@ -227,7 +231,6 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
      | Ercan DUMAN            | 19.10.2017          | Procedure creation.
     **************************************************************************************************/
 	 IS
-	
 	BEGIN
 	
 		INSERT INTO eduman.billing_invoices
@@ -235,7 +238,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		VALUES
 			(eduman.seq_billing_invoices_id.nextval,
 			 pis_ProcessedData,
-			 gs_InvoiceRemarkFailure || ' Wrong data format!',
+			 gs_InvoiceRemarkFailure || gs_ErrorDataFormat,
 			 gs_InvoiceStatusFailure,
 			 SYSDATE);
 		COMMIT;
@@ -246,7 +249,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 													 dbms_utility.format_error_backtrace);
 	END i_BillingInvoices;
 
-	PROCEDURE ParseFileData(pios_FileRowData IN OUT eduman.billing_invoices.processed_data%TYPE)
+	PROCEDURE ParseFileData(pios_FileRowData IN eduman.billing_invoices.processed_data%TYPE)
 	/**************************************************************************************************
     * Purpose    : To parse/split row data and insert in EDUMAN.BILLING_INVOICES table.
     * Notes      : N/A
@@ -287,7 +290,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 													 dbms_utility.format_error_backtrace);
 	END ParseFileData;
 
-	PROCEDURE CheckDataFormat(pios_FileRowData IN OUT eduman.billing_invoices.processed_data%TYPE)
+	PROCEDURE CheckDataFormat(pios_FileRowData IN eduman.billing_invoices.processed_data%TYPE)
 	/**************************************************************************************************
     * Purpose    : To checking data format for retrieved row data from file.
     * Notes      : N/A
@@ -308,7 +311,8 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	BEGIN
 		vn_StringFormatCount := REGEXP_COUNT(pios_FileRowData, '[^|]+', 1, 'i');
 	
-		vs_ProcessedData := nvl(pios_FileRowData, 'Empty Row!');
+		-- Check empty rows!
+		vs_ProcessedData := nvl(pios_FileRowData, gs_ErrorEmptyRow);
 	
 		IF vn_StringFormatCount <> gn_ColumnCount
 			 OR vn_StringFormatCount IS NULL
@@ -370,10 +374,10 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 					THEN
 						dbms_output.put_line('INFO> All data loaded!');
 					ELSE
-						dbms_output.put_line('ERROR> File is Empty!');
+						dbms_output.put_line('ERROR> ' || gs_ErrorEmptyFile);
 						gs_ExecutionsLogStatus := 'F';
 						gs_ExecutionLogRemark  := gs_InvoiceRemarkFailure ||
-																			' File is Empty!';
+																			gs_ErrorEmptyFile;
 					END IF;
 					EXIT;
 			END;
