@@ -12,3 +12,6 @@ drop table eduman.billing_inv_wa_log;
 drop sequence eduman.seq_product_id;
 drop sequence eduman.seq_billing_invoices_id;
 drop sequence eduman.seq_billing_inv_wa_log_id;
+
+-- Drop constraint
+alter table eduman.billing_global_config drop constraint ck_billing_global_conf_isvalid;
