@@ -61,9 +61,15 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		gs_OutFileName := gs_FilePrefix || gs_OutFileName || '.txt'; -- File format: invoice_23092017.txt
 	END GetGlobalConfigurations;
 
+<<<<<<< HEAD
 	PROCEDURE u_BillingInvoices(pin_InvoiceId IN eduman.billing_invoices.invoice_id%TYPE,
 															pin_GrossFee  IN eduman.billing_invoices.gross_fee%TYPE,
 															pis_Remark    IN eduman.billing_invoices.remark%TYPE)
+=======
+	PROCEDURE u_BillingInvoices(pis_Msisdn  IN eduman.billing_invoices.msisdn%TYPE,
+				    pin_GrossFee IN eduman.billing_invoices.gross_fee%TYPE,
+				    pis_Remark   IN eduman.billing_invoices.remark%TYPE)
+>>>>>>> origin/master
 	/**************************************************************************************************
     * Purpose    : To update EDUMAN.BILLING_INVOICES table for given invoice id.
     * Notes      : N/A
@@ -90,12 +96,22 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	
 	EXCEPTION
 		WHEN OTHERS THEN
+<<<<<<< HEAD
 			dbms_output.put_line('ERROR> ' || SQLERRM ||
 													 dbms_utility.format_error_backtrace);
 	END u_BillingInvoices;
 
 	PROCEDURE CalculateGrossFee(pin_InvoiceId IN eduman.billing_invoices.invoice_id%TYPE,
 															pin_Fee       IN eduman.billing_invoices.fee%TYPE)
+=======
+			dbms_output.put_line('ERROR> ' || SQLERRM || dbms_utility.format_error_backtrace);
+
+	END u_BillingInvoices;
+
+	PROCEDURE CalculateGrossFee(pios_Msisdn IN OUT eduman.billing_invoices.msisdn%TYPE,
+
+				    pin_Fee     IN NUMBER)
+>>>>>>> origin/master
 	/**************************************************************************************************
     * Purpose    : To calculate gross fee related to fee amount. load all global variable for execution of package.
     * Notes      : Gets fee amount and tax rates then do the calculation as: gross_fee = ((tax_rates/100) +1 )* fee_amount
@@ -129,14 +145,21 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		EXCEPTION
 			WHEN OTHERS THEN
 				vb_GrossFeeValid := 'N';
+<<<<<<< HEAD
 				dbms_output.put_line('ERROR> PRODUCT_NAME ' || vs_ProductName ||
 														 'not found in EDUMAN.BILLING_PRODUCT_TYPES table' ||
 														 dbms_utility.format_error_backtrace);
+=======
+				dbms_output.put_line('ERROR> PRODUCT_NAME ' || vs_ProductName 
+						     || 'not found in EDUMAN.BILLING_PRODUCT_TYPES table' ||
+						     dbms_utility.format_error_backtrace);
+>>>>>>> origin/master
 		END;
 	
 		-- Calculate gross fee
 		IF vb_GrossFeeValid <> 'N'
 		THEN
+<<<<<<< HEAD
 			vn_GrossFee := (nvl((vn_KDVTaxRate + vn_OIVTaxRate) / 100, 0) + 1) *
 										 pin_Fee;
 			vs_Remark   := gs_InvoiceRemarkSuccess;
@@ -145,6 +168,17 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			vs_Remark   := gs_InvoiceRemarkSuccess || CHR(9) ||
 										 ' PRODUCT_NAME not found in EDUMAN.BILLING_PRODUCT_TYPES table so calculation of gross_fee is failed!';
 		
+=======
+			vn_GrossFee := (nvl((vn_KDVTaxRate + vn_OIVTaxRate) / 100, 0) + 1) * pin_Fee;
+
+			vs_Remark   := gs_InvoiceRemarkSuccess;
+		ELSE
+			vn_GrossFee := pin_Fee;
+			vs_Remark   := gs_InvoiceRemarkSuccess || CHR(9) 
+			||' PRODUCT_NAME not found in EDUMAN.BILLING_PRODUCT_TYPES table so calculation of gross_fee is failed!';
+
+
+>>>>>>> origin/master
 		END IF;
 	
 		u_BillingInvoices(pin_InvoiceId, vn_GrossFee, vs_Remark);
@@ -212,8 +246,13 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	
 	EXCEPTION
 		WHEN OTHERS THEN
+<<<<<<< HEAD
 			dbms_output.put_line('ERROR> ' || SQLERRM ||
 													 dbms_utility.format_error_backtrace);
+=======
+			dbms_output.put_line('ERROR> ' || SQLERRM || dbms_utility.format_error_backtrace);
+
+>>>>>>> origin/master
 	END i_BillingInvoices;
 
 	PROCEDURE i_BillingInvoices(pis_ProcessedData IN eduman.billing_invoices.processed_data%TYPE,
@@ -247,12 +286,21 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	
 	EXCEPTION
 		WHEN OTHERS THEN
+<<<<<<< HEAD
 			dbms_output.put_line('ERROR> ' || SQLERRM ||
 													 dbms_utility.format_error_backtrace);
 	END i_BillingInvoices;
 
 	PROCEDURE ParseFileData(pios_FileRowData IN eduman.billing_invoices.processed_data%TYPE)
 	/**************************************************************************************************
+=======
+			dbms_output.put_line('ERROR> ' || SQLERRM || dbms_utility.format_error_backtrace);
+
+	END i_BillingInvoices;
+
+	PROCEDURE ParseFileData(pios_FileRowData IN OUT eduman.billing_invoices.processed_data%TYPE)
+/**************************************************************************************************
+>>>>>>> origin/master
     * Purpose    : To parse/split row data and insert in EDUMAN.BILLING_INVOICES table.
     * Notes      : N/A
     * -------------------------------------------------------------------------------------
@@ -273,12 +321,13 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		FOR i IN 1 .. gn_ColumnCount
 		LOOP
 			vt_FileRowDataArray(i) := regexp_substr(pios_FileRowData,
-																							'[^' || gs_FileSeparator || ']+',
-																							1,
-																							i);
+						'[^' || gs_FileSeparator || ']+',
+						1,
+						i);
 		END LOOP;
 	
 		i_BillingInvoices(vt_FileRowDataArray(1),
+<<<<<<< HEAD
 											vt_FileRowDataArray(2),
 											vt_FileRowDataArray(3),
 											vt_FileRowDataArray(4),
@@ -293,6 +342,23 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	END ParseFileData;
 
 	PROCEDURE CheckDataFormat(pios_FileRowData IN eduman.billing_invoices.processed_data%TYPE)
+=======
+				  vt_FileRowDataArray(2),
+				  vt_FileRowDataArray(3),
+				  vt_FileRowDataArray(4),
+				  vt_FileRowDataArray(5),
+				  vt_FileRowDataArray(6),
+				  pios_FileRowData);
+
+				  
+	EXCEPTION
+		WHEN OTHERS THEN
+			dbms_output.put_line('ERROR> ' || SQLERRM || dbms_utility.format_error_backtrace);
+
+	END ParseFileData;
+
+	PROCEDURE CheckDataFormat(pios_FileRowData IN OUT eduman.billing_invoices.processed_data%TYPE)
+>>>>>>> origin/master
 	/**************************************************************************************************
     * Purpose    : To checking data format for retrieved row data from file.
     * Notes      : N/A
@@ -317,6 +383,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		THEN
 			gn_ExecutionsFailureCount := gn_ExecutionsFailureCount + 1;
 		
+<<<<<<< HEAD
 			dbms_output.put_line('ERROR> Wrong Data Format! The data found is ''' ||
 													 pios_FileRowData || '''');
 			dbms_output.put_line('INFO> Data format should be as: ' || chr(10) ||
@@ -329,6 +396,15 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 				i_BillingInvoices(pios_FileRowData, gs_ErrorDataFormat);
 			END IF;
 		
+=======
+			dbms_output.put_line('ERROR> Wrong Data Format! The data found is ''' || vs_ProcessedData || '''');
+			dbms_output.put_line('INFO> Data format should be as: ' || chr(10) 
+			 || '''MSISDN|Service_Name|Start_Date|End_Date|Product_Name|Fee'' i.e.''5552550000|Aylik 1 GB Paketi|23.08.2017|23.09.2017|DATA|15''');
+		
+		i_BillingInvoices(vs_ProcessedData);
+			dbms_output.put_line('INFO> gn_ExecutionsFailureCount ' || gn_ExecutionsFailureCount);
+
+>>>>>>> origin/master
 		ELSE
 		
 			ParseFileData(pios_FileRowData);
@@ -351,7 +427,12 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
      | Ercan DUMAN            | 17.10.2017          | Procedure creation.
     **************************************************************************************************/
 	 IS
+<<<<<<< HEAD
 		vt_OutFile     UTL_FILE.FILE_TYPE;
+=======
+		vt_OutFile UTL_FILE.FILE_TYPE;
+
+>>>>>>> origin/master
 		vs_FileRowData eduman.billing_invoices.processed_data%TYPE;
 	BEGIN
 	
@@ -359,12 +440,17 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			vt_OutFile := UTL_FILE.FOPEN(gs_OutDirectoryName, gs_OutFileName, 'R');
 		EXCEPTION
 			WHEN OTHERS THEN
+<<<<<<< HEAD
 				dbms_output.put_line('ERROR> ' || gs_InvoiceRemarkFailure ||
 														 'File NOT FOUND! ' ||
 														 'Please check privileges or file name and/or directory name!');
 				gs_ExecutionsLogStatus := 'F';
 				gs_ExecutionLogRemark  := gs_InvoiceRemarkFailure ||
 																	' File not Found!';
+=======
+				dbms_output.put_line('INFO!> Error occurred with file operation.
+						     Please check privileges or file name and/or directory name!');
+>>>>>>> origin/master
 		END;
 		LOOP
 			BEGIN
@@ -380,8 +466,13 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 					ELSE
 						dbms_output.put_line('ERROR> ' || gs_ErrorEmptyFile);
 						gs_ExecutionsLogStatus := 'F';
+<<<<<<< HEAD
 						gs_ExecutionLogRemark  := gs_InvoiceRemarkFailure ||
 																			gs_ErrorEmptyFile;
+=======
+						gs_ExecutionLogRemark  := gs_InvoiceRemarkFailure 
+						|| ' File is Empty!';
+>>>>>>> origin/master
 					END IF;
 					EXIT;
 			END;
@@ -427,8 +518,13 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 		
 			IF gn_ExecutionsFailureCount > 0
 			THEN
+<<<<<<< HEAD
 				gs_ExecutionLogRemark := gs_ExecutionLogRemark || CHR(9) ||
 																 gn_ExecutionsFailureCount || ' FAILURE';
+=======
+				gs_ExecutionLogRemark := gs_ExecutionLogRemark || CHR(9) || gn_ExecutionsFailureCount || ' FAILURE';
+
+>>>>>>> origin/master
 			END IF;
 		END IF;
 	
