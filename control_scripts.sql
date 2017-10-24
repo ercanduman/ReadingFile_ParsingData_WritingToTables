@@ -3,12 +3,3 @@ SELECT * FROM eduman.billing_product_types;
 
 SELECT * FROM eduman.billing_invoices ORDER BY invoice_id DESC;
 SELECT * FROM eduman.billing_inv_wa_log ORDER BY inv_log_id DESC;
-
-SELECT *
-	FROM eduman.billing_invoices bi, eduman.billing_product_types bp
- WHERE bi.product_name = bp.product_name;
-
-SELECT DISTINCT kdv_tax_rate, oiv_tax_rate
-	FROM eduman.billing_invoices bi, eduman.billing_product_types bp
- WHERE bi.product_name = bp.product_name
-	 AND msisdn = '5552550000';

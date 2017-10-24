@@ -8,7 +8,7 @@ create table EDUMAN.BILLING_GLOBAL_CONFIG (
 );
   
 --table comment
-comment on table EDUMAN.BILLING_GLOBAL_CONFIG  is 'Stores all configurations for package execution.';
+comment on table EDUMAN.BILLING_GLOBAL_CONFIG  is 'Stores all configurations like file_separator, file_prefix etc for package execution.';
 
 --column comments
 comment on column EDUMAN.BILLING_GLOBAL_CONFIG.file_separator is 'file_separator attribute defines the character value that put between text of file data.';

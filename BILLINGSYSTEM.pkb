@@ -102,7 +102,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
     * -------------------------------------------------------------------------------------
     * Parameters : 
       - pin_InvoiceId : Unique idetifier of current execution.
-      - pin_Fee       : The price (fee amount) parsed fom file data.
+      - pin_Fee       : The price (fee amount) parsed from file data.
     * Return     : N/A
     * Exceptions : N/A
     * -------------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 															pid_StartDate     IN eduman.billing_invoices.start_date%TYPE,
 															pid_EndDate       IN eduman.billing_invoices.end_date%TYPE,
 															pis_ProductName   IN eduman.billing_invoices.product_name%TYPE,
-															pion_Fee          IN eduman.billing_invoices.fee%TYPE,
+															pin_Fee           IN eduman.billing_invoices.fee%TYPE,
 															pis_ProcessedData IN eduman.billing_invoices.processed_data%TYPE)
 	/**************************************************************************************************
     * Purpose    : Insertion of EDUMAN.BILLING_INVOICES table.
@@ -167,7 +167,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
       - pid_StartDate     : Service start time that parsed from file data.
       - pid_EndDate       : Service end time that parsed from file data. 
       - pis_ProductName   : Product name which can be SES, DATA, VAS etc.
-      - pion_Fee          : Fee amount that parsed from file data..
+      - pin_Fee          : Fee amount that parsed from file data..
       - pis_ProcessedData : Executed whole data from row of file.
     * Return     : N/A
     * Exceptions : N/A
@@ -201,14 +201,14 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			 pid_StartDate,
 			 pid_EndDate,
 			 SUBSTR(pis_ProductName, 0, 50),
-			 pion_Fee,
+			 pin_Fee,
 			 SUBSTR(pis_ProcessedData, 0, 2000),
 			 SUBSTR(gs_InvoiceRemarkSuccess, 0, 2000),
 			 gs_InvoiceStatusSuccess,
 			 SYSDATE);
 		COMMIT;
 	
-		CalculateGrossFee(vn_InvoiceId, pion_Fee);
+		CalculateGrossFee(vn_InvoiceId, pin_Fee);
 	
 	EXCEPTION
 		WHEN OTHERS THEN
@@ -251,13 +251,13 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 													 dbms_utility.format_error_backtrace);
 	END i_BillingInvoices;
 
-	PROCEDURE ParseFileData(pios_FileRowData IN eduman.billing_invoices.processed_data%TYPE)
+	PROCEDURE ParseFileData(pis_FileRowData IN eduman.billing_invoices.processed_data%TYPE)
 	/**************************************************************************************************
     * Purpose    : To parse/split row data and insert in EDUMAN.BILLING_INVOICES table.
     * Notes      : N/A
     * -------------------------------------------------------------------------------------
     * Parameters : 
-      - pios_FileRowData : Executed whole data from row.
+      - pis_FileRowData : Executed whole data from row.
     * Return     : N/A
     * Exceptions : N/A
     * -------------------------------------------------------------------------------------
@@ -272,7 +272,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	
 		FOR i IN 1 .. gn_ColumnCount
 		LOOP
-			vt_FileRowDataArray(i) := regexp_substr(pios_FileRowData,
+			vt_FileRowDataArray(i) := regexp_substr(pis_FileRowData,
 																							'[^' || gs_FileSeparator || ']+',
 																							1,
 																							i);
@@ -284,7 +284,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 											vt_FileRowDataArray(4),
 											vt_FileRowDataArray(5),
 											vt_FileRowDataArray(6),
-											pios_FileRowData);
+											pis_FileRowData);
 	
 	EXCEPTION
 		WHEN OTHERS THEN
@@ -292,13 +292,13 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 													 dbms_utility.format_error_backtrace);
 	END ParseFileData;
 
-	PROCEDURE CheckDataFormat(pios_FileRowData IN eduman.billing_invoices.processed_data%TYPE)
+	PROCEDURE CheckDataFormat(pis_FileRowData IN eduman.billing_invoices.processed_data%TYPE)
 	/**************************************************************************************************
     * Purpose    : To checking data format for retrieved row data from file.
     * Notes      : N/A
     * -------------------------------------------------------------------------------------
     * Parameters : 
-      - pios_FileRowData : Executed whole data from row.
+      - pis_FileRowData : Executed whole data from row.
     * Return     : N/A
     * Exceptions : N/A
     * -------------------------------------------------------------------------------------
@@ -310,7 +310,7 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 	 IS
 		vn_StringFormatCount NUMBER := 0;
 	BEGIN
-		vn_StringFormatCount := REGEXP_COUNT(pios_FileRowData, '[^|]+', 1, 'i');
+		vn_StringFormatCount := REGEXP_COUNT(pis_FileRowData, '[^|]+', 1, 'i');
 	
 		IF vn_StringFormatCount <> gn_ColumnCount
 			 OR vn_StringFormatCount IS NULL
@@ -318,20 +318,20 @@ CREATE OR REPLACE PACKAGE BODY EDUMAN.BILLINGSYSTEM
 			gn_ExecutionsFailureCount := gn_ExecutionsFailureCount + 1;
 		
 			dbms_output.put_line('ERROR> Wrong Data Format! The data found is ''' ||
-													 pios_FileRowData || '''');
+													 pis_FileRowData || '''');
 			dbms_output.put_line('INFO> Data format should be as: ' || chr(10) ||
 													 '''MSISDN|Service_Name|Start_Date|End_Date|Product_Name|Fee'' i.e.''5552550000|Aylik 1 GB Paketi|23.08.2017|23.09.2017|DATA|15''');
 		
-			IF pios_FileRowData IS NULL
+			IF pis_FileRowData IS NULL
 			THEN
-				i_BillingInvoices(pios_FileRowData, gs_ErrorEmptyRow);
+				i_BillingInvoices(pis_FileRowData, gs_ErrorEmptyRow);
 			ELSE
-				i_BillingInvoices(pios_FileRowData, gs_ErrorDataFormat);
+				i_BillingInvoices(pis_FileRowData, gs_ErrorDataFormat);
 			END IF;
 		
 		ELSE
 		
-			ParseFileData(pios_FileRowData);
+			ParseFileData(pis_FileRowData);
 		END IF;
 	
 	END CheckDataFormat;

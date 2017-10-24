@@ -14,12 +14,12 @@ create table EDUMAN.BILLING_INVOICES (
 );
 
 --table comment retrieved
-comment on table EDUMAN.BILLING_INVOICES  is 'Stores all Invoices which are read from file.';
+comment on table EDUMAN.BILLING_INVOICES  is 'Main table that stores all Invoices which are read and parsed from file.';
 
 --column comments
 comment on column EDUMAN.BILLING_INVOICES.Invoice_Id is 'Invoice_Id attribute defines unique identifier of BILLING_INVOICES.';
 comment on column EDUMAN.BILLING_INVOICES.MSISDN is 'MSISDN attribute defines the phone number (MSISDN) that parsed from file data.';
-comment on column EDUMAN.BILLING_INVOICES.Service_Name is 'Service_Name attribute defines the of service/product that parsed from file data.';
+comment on column EDUMAN.BILLING_INVOICES.Service_Name is 'Service_Name attribute defines the name of service/product that parsed from file data.';
 comment on column EDUMAN.BILLING_INVOICES.Start_Date is 'Start_Date attribute defines the billing start date that parsed from file data.';
 comment on column EDUMAN.BILLING_INVOICES.End_Date is 'End_Date attribute defines the billing end date that parsed from file data.';
 comment on column EDUMAN.BILLING_INVOICES.Product_Name is 'Product_Name attribute defines the name of product which are stored in eduman.billing_product_types.';
